@@ -8,7 +8,7 @@
 #endif
 
 #ifndef SIZE
-#define SIZE 4194304 // array size -- 4MB (Can be altered, just stay within a reasonably large bound)
+#define SIZE 4194304 // array size -- 16MB (4M entries -- 2^22 entries at 4 bytes per float) (Can be altered, just stay within a reasonably large bound)
 #endif
 
 #define NUMTRIES 20 // how many times to run the timing to get reliable timing data
