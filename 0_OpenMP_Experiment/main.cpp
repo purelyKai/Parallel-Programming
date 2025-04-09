@@ -1,6 +1,6 @@
+#include <math.h>
 #include <omp.h>
 #include <stdio.h>
-#include <math.h>
 #include <stdlib.h>
 
 #ifndef NUMT
@@ -27,8 +27,7 @@ int main()
 #endif
 
     // initialize the arrays:
-    for(int i = 0; i < SIZE; i++)
-    {
+    for (int i = 0; i < SIZE; i++) {
         A[i] = 1.;
         B[i] = 2.;
     }
@@ -37,20 +36,17 @@ int main()
 
     double maxMegaMults = 0.;
 
-    for(int t = 0; t < NUMTRIES; t++)
-    {
+    for (int t = 0; t < NUMTRIES; t++) {
         double time0 = omp_get_wtime();
 
-        #pragma omp parallel for
-        for(int i = 0; i < SIZE; i++)
-        {
+#pragma omp parallel for
+        for (int i = 0; i < SIZE; i++) {
             C[i] = A[i] * B[i];
         }
 
         double time1 = omp_get_wtime();
-        double megaMults = (double)SIZE/(time1-time0)/1000000.;
-        if(megaMults > maxMegaMults)
-        {
+        double megaMults = (double)SIZE / (time1 - time0) / 1000000.;
+        if (megaMults > maxMegaMults) {
             maxMegaMults = megaMults;
         }
     }
