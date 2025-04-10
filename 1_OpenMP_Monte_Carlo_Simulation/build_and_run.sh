@@ -7,7 +7,7 @@ echo "Threads,Trials,Probability,MegaTrialsPerSecond" > performance_data.csv
 THREAD_COUNTS=(1 2 4 6 8)
 
 # Define the number of trials to test
-TRIAL_COUNTS=(1000 10000 50000 100000 500000 1000000)
+TRIAL_COUNTS=(100000 500000 1000000 5000000 10000000)
 
 # Run tests for all combinations
 for numt in "${THREAD_COUNTS[@]}"; do
