@@ -26,11 +26,17 @@ set key outside
 set grid
 set datafile separator ","
 set style data lines
+
+# Multiply 'Weed Density' by 50 for normalization
+weed_density_norm(x) = x * 50
+
+# Plot the data using metric values
+
 plot 'simulation_metric.csv' using 0:3 title "Temperature (°C)" with lines lw 2, \
      'simulation_metric.csv' using 0:4 title "Precipitation (cm)" with lines lw 2, \
      'simulation_metric.csv' using 0:5 title "Grain Height (cm)" with lines lw 2, \
      'simulation_metric.csv' using 0:6 title "Deer Population" with lines lw 2, \
-     'simulation_metric.csv' using 0:7 title "Weed Density" with lines lw 2
+     'simulation_metric.csv' using 0:(weed_density_norm(\$7)) title "Weed Density (normalized)" with lines lw 2
 EOL
 
 # Run gnuplot
