@@ -58,14 +58,14 @@ float Distance(int city, int capital)
 int main(int argc, char* argv[])
 {
 #ifdef _OPENMP
-    fprintf(stderr, "OpenMP is supported -- version = %d\n", _OPENMP);
+    // fprintf(stderr, "OpenMP is supported -- version = %d\n", _OPENMP);
 #else
     fprintf(stderr, "No OpenMP support!\n");
     return 1;
 #endif
 
     // make sure we have the data correctly:
-    // for (int i = 0; i < NUMCITIES; i++) // {
+    // for (int i = 0; i < NUMCITIES; i++) {
     //     fprintf(stderr, "%3d  %8.2f  %8.2f  %s\n", i, Cities[i].longitude, Cities[i].latitude, Cities[i].name.c_str());
     // }
 
@@ -90,7 +90,7 @@ int main(int argc, char* argv[])
 
         time0 = omp_get_wtime();
 
-        // the #pragma goes here -- you figure out what it needs to look like:
+#pragma omp parallel for default(none) shared(Capitals, Cities)
         for (int i = 0; i < NUMCITIES; i++) {
             int capitalnumber = -1;
             float mindistance = 1.e+37;
@@ -98,13 +98,14 @@ int main(int argc, char* argv[])
             for (int k = 0; k < NUMCAPITALS; k++) {
                 float dist = Distance(i, k);
                 if (dist < mindistance) {
-                    ? ? ? ? ? ;
-                    ? ? ? ? ? ;
-                    ? ? ? ? ? ;
+                    mindistance = dist;
+                    capitalnumber = k;
+                    Cities[i].capitalnumber = k;
                 }
             }
 
             int k = Cities[i].capitalnumber;
+
 // this is here for the same reason as the Trapezoid noteset uses it:
 #pragma omp critical
             {
@@ -117,27 +118,37 @@ int main(int argc, char* argv[])
 
         // get the average longitude and latitude for each capital:
         for (int k = 0; k < NUMCAPITALS; k++) {
-            Capitals[k].longitude = ? ? ? ? ? ;
-            Capitals[k].latitude = ? ? ? ? ? ;
+            Capitals[k].longitude = Capitals[k].longsum / Capitals[k].numsum;
+            Capitals[k].latitude = Capitals[k].latsum / Capitals[k].numsum;
         }
     }
 
     double megaCityCapitalsPerSecond = (double)NUMCITIES * (double)NUMCAPITALS / (time1 - time0) / 1000000.;
 
     // figure out what actual city is closest to each capital:
-    // this is the extra credit:
     for (int k = 0; k < NUMCAPITALS; k++) {
-        ? ? ? ? ? ;
+        int minCity = -1;
+        float minDist = 1.e+37;
+
+        for (int i = 0; i < NUMCITIES; i++) {
+            float dx = Cities[i].longitude - Capitals[k].longitude;
+            float dy = Cities[i].latitude - Capitals[k].latitude;
+            float dist = sqrtf(dx * dx + dy * dy);
+            if (dist < minDist) {
+                minDist = dist;
+                minCity = i;
+            }
+        }
+
+        Capitals[k].name = Cities[minCity].name;
     }
 
     // print the longitude-latitude of each new capital city:
     // you only need to do this once per some number of NUMCAPITALS -- do it for the 1-thread version:
     if (NUMT == 1) {
         for (int k = 0; k < NUMCAPITALS; k++) {
-            fprintf(stderr, "\t%3d:  %8.2f , %8.2f\n", k, Capitals[k].longitude, Capitals[k].latitude);
-
-            // if you did the extra credit, use this fprintf instead:
-            // fprintf(stderr, "\t%3d:  %8.2f , %8.2f , %s\n", k, Capitals[k].longitude, Capitals[k].latitude, Capitals[k].name.c_str());
+            // fprintf(stderr, "\t%3d:  %8.2f , %8.2f\n", k, Capitals[k].longitude, Capitals[k].latitude);
+            fprintf(stderr, "\t%3d:  %8.2f , %8.2f , %s\n", k, Capitals[k].longitude, Capitals[k].latitude, Capitals[k].name.c_str());
         }
     }
 #ifdef CSV
