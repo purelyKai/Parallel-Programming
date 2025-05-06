@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Create output file with header
+# Create output files with headers
 echo "NUMT,NUMCITIES,NUMCAPITALS,MegaCityCapitalsPerSecond" > results.csv
+echo "NUMT,NUMCITIES,NUMCAPITALS,MegaCityCapitalsPerSecond" > extra_results.csv
 
 # Run tests for different combinations of threads and capitals
 for t in 1 2 4 6 8
@@ -10,8 +11,8 @@ do
         do
         echo "Running with NUMT=$t, NUMCAPITALS=$n"
         g++ main.cpp -DNUMT=$t -DNUMCAPITALS=$n -o main -fopenmp -lm
-        ./main 2>> results.csv
+        ./main >> extra_results.csv 2>> results.csv
     done
 done
 
-echo "Testing complete. Results saved to results.csv"
+echo "Testing complete. Results saved to results.csv and extra_results.csv"

@@ -147,12 +147,14 @@ int main(int argc, char* argv[])
     // you only need to do this once per some number of NUMCAPITALS -- do it for the 1-thread version:
     if (NUMT == 1) {
         for (int k = 0; k < NUMCAPITALS; k++) {
-            // fprintf(stderr, "\t%3d:  %8.2f , %8.2f\n", k, Capitals[k].longitude, Capitals[k].latitude);
-            fprintf(stderr, "\t%3d:  %8.2f , %8.2f , %s\n", k, Capitals[k].longitude, Capitals[k].latitude, Capitals[k].name.c_str());
+            fprintf(stdout, "\t%3d:  %8.2f , %8.2f , %s\n", k, Capitals[k].longitude, Capitals[k].latitude, Capitals[k].name.c_str());
         }
     }
 #ifdef CSV
-    fprintf(stderr, "%2d , %4d , %4d , %8.3lf:\n", NUMT, NUMCITIES, NUMCAPITALS, megaCityCapitalsPerSecond);
+    fprintf(stderr, "%2d , %4d , %4d , %8.3lf\n", NUMT, NUMCITIES, NUMCAPITALS, megaCityCapitalsPerSecond);
+    if (NUMT == 1) {
+        fprintf(stdout, "%2d , %4d , %4d , %8.3lf\n", NUMT, NUMCITIES, NUMCAPITALS, megaCityCapitalsPerSecond);
+    }
 #else
     fprintf(stderr, "%2d threads : %4d cities ; %4d capitals; megatrials/sec = %8.3lf\n",
         NUMT, NUMCITIES, NUMCAPITALS, megaCityCapitalsPerSecond);
