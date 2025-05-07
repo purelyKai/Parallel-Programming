@@ -1,5 +1,17 @@
 #!/bin/bash
 
+# Set this to true to use Intel intrinsics, false to use assembly
+USE_INTRINSICS=true
+
+# Set implementation name for file naming
+if $USE_INTRINSICS; then
+    COMPILE_FLAGS="-DUSE_INTRINSICS"
+    echo "Running with Intel Intrinsics implementation"
+else
+    COMPILE_FLAGS=""
+    echo "Running with inline Assembly implementation"
+fi
+
 # Array sizes from 1K to 8M
 SIZES=(1024 4096 16384 65536 262144 1048576 4194304 8388608)
 
@@ -10,7 +22,7 @@ echo "ArraySize,NonSimdMul(MM/sec),SimdMul(MM/sec),SpeedupMul,NonSimdMulSum(MM/s
 for size in "${SIZES[@]}"
 do
     echo "Testing array size: $size"
-    g++ -DARRAYSIZE=$size -o main main.cpp -fopenmp
+    g++ -DARRAYSIZE=$size $COMPILE_FLAGS -o main main.cpp -fopenmp
     
     # Run the program and capture the output
     ./main 2>> results.csv

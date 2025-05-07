@@ -7,8 +7,12 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 
-// SSE stands for Streaming SIMD Extensions
+// Conditional include for Intel intrinsics
+#ifdef USE_INTRINSICS
+#include <immintrin.h>
+#endif
 
+// SSE stands for Streaming SIMD Extensions
 #define SSE_WIDTH 4
 #define ALIGNED __attribute__((aligned(16)))
 
@@ -29,13 +33,25 @@ float NonSimdMulSum(float*, float*, int);
 
 int main(int argc, char* argv[])
 {
+    // Output in CSV format instead of tab-separated format
+    // Format: ArraySize,NonSimdMul,SimdMul,SpeedupMul,NonSimdMulSum,SimdMulSum,SpeedupMulSum
+
+    // Variables for mul performance
+    double nonSimdMulPerf = 0.0; // Non-SIMD multiplication performance
+    double simdMulPerf = 0.0; // SIMD multiplication performance
+    double mulSpeedup = 0.0; // Speedup ratio for multiplication
+
+    // Variables for mulsum performance
+    double nonSimdMulSumPerf = 0.0; // Non-SIMD multiplication+sum performance
+    double simdMulSumPerf = 0.0; // SIMD multiplication+sum performance
+    double mulSumSpeedup = 0.0; // Speedup ratio for multiplication+sum
+
     for (int i = 0; i < ARRAYSIZE; i++) {
         A[i] = sqrtf((float)(i + 1));
         B[i] = sqrtf((float)(i + 1));
     }
 
-    fprintf(stderr, "%12d\t", ARRAYSIZE);
-
+    // Test 1: Non-SIMD multiplication
     double maxPerformance = 0.;
     for (int t = 0; t < NUMTRIES; t++) {
         double time0 = omp_get_wtime();
@@ -45,10 +61,9 @@ int main(int argc, char* argv[])
         if (perf > maxPerformance)
             maxPerformance = perf;
     }
-    double megaMults = maxPerformance / 1000000.;
-    fprintf(stderr, "N %10.2lf\t", megaMults);
-    double mmn = megaMults;
+    nonSimdMulPerf = maxPerformance / 1000000.;
 
+    // Test 2: SIMD multiplication
     maxPerformance = 0.;
     for (int t = 0; t < NUMTRIES; t++) {
         double time0 = omp_get_wtime();
@@ -58,12 +73,10 @@ int main(int argc, char* argv[])
         if (perf > maxPerformance)
             maxPerformance = perf;
     }
-    megaMults = maxPerformance / 1000000.;
-    fprintf(stderr, "S %10.2lf\t", megaMults);
-    double mms = megaMults;
-    double speedup = mms / mmn;
-    fprintf(stderr, "(%6.2lf)\t", speedup);
+    simdMulPerf = maxPerformance / 1000000.;
+    mulSpeedup = simdMulPerf / nonSimdMulPerf;
 
+    // Test 3: Non-SIMD multiplication with sum
     maxPerformance = 0.;
     float sumn, sums;
     for (int t = 0; t < NUMTRIES; t++) {
@@ -74,10 +87,9 @@ int main(int argc, char* argv[])
         if (perf > maxPerformance)
             maxPerformance = perf;
     }
-    double megaMultAdds = maxPerformance / 1000000.;
-    fprintf(stderr, "N %10.2lf\t", megaMultAdds);
-    mmn = megaMultAdds;
+    nonSimdMulSumPerf = maxPerformance / 1000000.;
 
+    // Test 4: SIMD multiplication with sum
     maxPerformance = 0.;
     for (int t = 0; t < NUMTRIES; t++) {
         double time0 = omp_get_wtime();
@@ -87,12 +99,18 @@ int main(int argc, char* argv[])
         if (perf > maxPerformance)
             maxPerformance = perf;
     }
-    megaMultAdds = maxPerformance / 1000000.;
-    fprintf(stderr, "S %10.2lf\t", megaMultAdds);
-    mms = megaMultAdds;
-    speedup = mms / mmn;
-    fprintf(stderr, "(%6.2lf)\n", speedup);
-    // fprintf( stderr, "[ %8.1f , %8.1f , %8.1f ]\n", C[ARRAYSIZE-1], sumn, sums );
+    simdMulSumPerf = maxPerformance / 1000000.;
+    mulSumSpeedup = simdMulSumPerf / nonSimdMulSumPerf;
+
+    // Output the CSV line: ArraySize,NonSimdMul,SimdMul,SpeedupMul,NonSimdMulSum,SimdMulSum,SpeedupMulSum
+    fprintf(stderr, "%d,%.2lf,%.2lf,%.2lf,%.2lf,%.2lf,%.2lf\n",
+        ARRAYSIZE,
+        nonSimdMulPerf,
+        simdMulPerf,
+        mulSpeedup,
+        nonSimdMulSumPerf,
+        simdMulSumPerf,
+        mulSumSpeedup);
 
     return 0;
 }
@@ -116,6 +134,21 @@ float NonSimdMulSum(float* A, float* B, int n)
 void SimdMul(float* a, float* b, float* c, int len)
 {
     int limit = (len / SSE_WIDTH) * SSE_WIDTH;
+
+#ifdef USE_INTRINSICS
+    // Process 4 floats at a time using SSE
+    for (int i = 0; i < limit; i += SSE_WIDTH) {
+        // Load 4 floats from arrays a and b
+        __m128 va = _mm_loadu_ps(&a[i]);
+        __m128 vb = _mm_loadu_ps(&b[i]);
+
+        // Multiply them together
+        __m128 vc = _mm_mul_ps(va, vb);
+
+        // Store the result in array c
+        _mm_storeu_ps(&c[i], vc);
+    }
+#else
     __asm(
         ".att_syntax\n\t"
         "movq    -24(%rbp), %r8\n\t" // a
@@ -134,7 +167,9 @@ void SimdMul(float* a, float* b, float* c, int len)
             "addq $16, %rcx\n\t"
             "addq $16, %rdx\n\t");
     }
+#endif
 
+    // Handle any remaining elements
     for (int i = limit; i < len; i++) {
         c[i] = a[i] * b[i];
     }
@@ -142,9 +177,29 @@ void SimdMul(float* a, float* b, float* c, int len)
 
 float SimdMulSum(float* a, float* b, int len)
 {
-    float sum[4] = { 0., 0., 0., 0. };
+    ALIGNED float sum[4] = { 0., 0., 0., 0. };
     int limit = (len / SSE_WIDTH) * SSE_WIDTH;
 
+#ifdef USE_INTRINSICS
+    // Initialize sum vector to zeros
+    __m128 vsum = _mm_setzero_ps();
+
+    // Process 4 floats at a time using SSE
+    for (int i = 0; i < limit; i += SSE_WIDTH) {
+        // Load 4 floats from arrays a and b
+        __m128 va = _mm_loadu_ps(&a[i]);
+        __m128 vb = _mm_loadu_ps(&b[i]);
+
+        // Multiply them together
+        __m128 vmul = _mm_mul_ps(va, vb);
+
+        // Add to the running sum
+        vsum = _mm_add_ps(vsum, vmul);
+    }
+
+    // Store the result in our sum array
+    _mm_store_ps(sum, vsum);
+#else
     __asm(
         ".att_syntax\n\t"
         "movq    -40(%rbp), %r8\n\t" // a
@@ -168,7 +223,9 @@ float SimdMulSum(float* a, float* b, int len)
         ".att_syntax\n\t"
         "movups	 %xmm2, (%rdx)\n\t" // copy the sums back to sum[ ]
     );
+#endif
 
+    // Handle any remaining elements
     for (int i = limit; i < len; i++) {
         sum[0] += a[i] * b[i];
     }
