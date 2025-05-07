@@ -1,2 +1,5 @@
 main
 *.exe
+*.csv
+*.plt
+*.png
