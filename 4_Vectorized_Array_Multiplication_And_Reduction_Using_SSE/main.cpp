@@ -8,13 +8,21 @@
 #include <sys/time.h>
 
 // Conditional include for Intel intrinsics
-#ifdef USE_INTRINSICS
+#if defined(USE_INTRINSICS) || defined(USE_AVX)
 #include <immintrin.h>
 #endif
 
-// SSE stands for Streaming SIMD Extensions
+// SSE uses 128-bit registers (4 floats)
 #define SSE_WIDTH 4
+// AVX uses 256-bit registers (8 floats)
+#define AVX_WIDTH 8
+
+// Improve alignment for AVX
+#ifdef USE_AVX
+#define ALIGNED __attribute__((aligned(32)))
+#else
 #define ALIGNED __attribute__((aligned(16)))
+#endif
 
 #define NUMTRIES 100
 
@@ -133,9 +141,31 @@ float NonSimdMulSum(float* A, float* B, int n)
 
 void SimdMul(float* a, float* b, float* c, int len)
 {
+#ifdef USE_AVX
+    // Using AVX/AVX2 intrinsics (processes 8 floats at once)
+    int limit = (len / AVX_WIDTH) * AVX_WIDTH;
+
+    // Process 8 floats at a time using AVX
+    for (int i = 0; i < limit; i += AVX_WIDTH) {
+        // Load 8 floats from arrays a and b
+        __m256 va = _mm256_loadu_ps(&a[i]);
+        __m256 vb = _mm256_loadu_ps(&b[i]);
+
+        // Multiply them together
+        __m256 vc = _mm256_mul_ps(va, vb);
+
+        // Store the result in array c
+        _mm256_storeu_ps(&c[i], vc);
+    }
+
+    // Handle any remaining elements
+    for (int i = limit; i < len; i++) {
+        c[i] = a[i] * b[i];
+    }
+#elif defined(USE_INTRINSICS)
+    // Using SSE intrinsics (processes 4 floats at once)
     int limit = (len / SSE_WIDTH) * SSE_WIDTH;
 
-#ifdef USE_INTRINSICS
     // Process 4 floats at a time using SSE
     for (int i = 0; i < limit; i += SSE_WIDTH) {
         // Load 4 floats from arrays a and b
@@ -148,7 +178,15 @@ void SimdMul(float* a, float* b, float* c, int len)
         // Store the result in array c
         _mm_storeu_ps(&c[i], vc);
     }
+
+    // Handle any remaining elements
+    for (int i = limit; i < len; i++) {
+        c[i] = a[i] * b[i];
+    }
 #else
+    // Using inline assembly
+    int limit = (len / SSE_WIDTH) * SSE_WIDTH;
+
     __asm(
         ".att_syntax\n\t"
         "movq    -24(%rbp), %r8\n\t" // a
@@ -167,20 +205,50 @@ void SimdMul(float* a, float* b, float* c, int len)
             "addq $16, %rcx\n\t"
             "addq $16, %rdx\n\t");
     }
-#endif
 
     // Handle any remaining elements
     for (int i = limit; i < len; i++) {
         c[i] = a[i] * b[i];
     }
+#endif
 }
 
 float SimdMulSum(float* a, float* b, int len)
 {
+#ifdef USE_AVX
+    // Using AVX/AVX2 intrinsics (processes 8 floats at once)
+    ALIGNED float sum[8] = { 0., 0., 0., 0., 0., 0., 0., 0. };
+    int limit = (len / AVX_WIDTH) * AVX_WIDTH;
+
+    // Initialize sum vector to zeros
+    __m256 vsum = _mm256_setzero_ps();
+
+    // Process 8 floats at a time using AVX
+    for (int i = 0; i < limit; i += AVX_WIDTH) {
+        // Load 8 floats from arrays a and b
+        __m256 va = _mm256_loadu_ps(&a[i]);
+        __m256 vb = _mm256_loadu_ps(&b[i]);
+
+        // Multiply them together and add to running sum
+        __m256 vmul = _mm256_mul_ps(va, vb);
+        vsum = _mm256_add_ps(vsum, vmul);
+    }
+
+    // Store the result in our sum array
+    _mm256_store_ps(sum, vsum);
+
+    // Handle any remaining elements
+    for (int i = limit; i < len; i++) {
+        sum[0] += a[i] * b[i];
+    }
+
+    // Sum all 8 elements
+    return sum[0] + sum[1] + sum[2] + sum[3] + sum[4] + sum[5] + sum[6] + sum[7];
+#elif defined(USE_INTRINSICS)
+    // Using SSE intrinsics (processes 4 floats at once)
     ALIGNED float sum[4] = { 0., 0., 0., 0. };
     int limit = (len / SSE_WIDTH) * SSE_WIDTH;
 
-#ifdef USE_INTRINSICS
     // Initialize sum vector to zeros
     __m128 vsum = _mm_setzero_ps();
 
@@ -199,7 +267,18 @@ float SimdMulSum(float* a, float* b, int len)
 
     // Store the result in our sum array
     _mm_store_ps(sum, vsum);
+
+    // Handle any remaining elements
+    for (int i = limit; i < len; i++) {
+        sum[0] += a[i] * b[i];
+    }
+
+    return sum[0] + sum[1] + sum[2] + sum[3];
 #else
+    // Using inline assembly
+    ALIGNED float sum[4] = { 0., 0., 0., 0. };
+    int limit = (len / SSE_WIDTH) * SSE_WIDTH;
+
     __asm(
         ".att_syntax\n\t"
         "movq    -40(%rbp), %r8\n\t" // a
@@ -223,7 +302,6 @@ float SimdMulSum(float* a, float* b, int len)
         ".att_syntax\n\t"
         "movups	 %xmm2, (%rdx)\n\t" // copy the sums back to sum[ ]
     );
-#endif
 
     // Handle any remaining elements
     for (int i = limit; i < len; i++) {
@@ -231,4 +309,5 @@ float SimdMulSum(float* a, float* b, int len)
     }
 
     return sum[0] + sum[1] + sum[2] + sum[3];
+#endif
 }
