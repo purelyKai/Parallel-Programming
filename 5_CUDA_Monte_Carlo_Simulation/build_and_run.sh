@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Output CSV header
-echo "Threads,Trials,Probability,MegaTrialsPerSecond" > performance_data.csv
+echo "Trials, Threads, MegaTrialsPerSecond" > performance_data.csv
 
 # Define the number of threads per block to test
 THREAD_COUNTS=(8 32 64 128 256)
@@ -14,7 +14,7 @@ for numt in "${THREAD_COUNTS[@]}"; do
         echo "Running with $numt threads and $numtrials trials..."
 
         # Compile with specific thread and trial counts
-        /usr/local/apps/cuda/cuda-10.1/bin/nvcc -DNUMTRIALS=$t -DBLOCKSIZE=$b -o main main.cu
+        nvcc -DNUMTRIALS=$numtrials -DBLOCKSIZE=$numt -o main main.cu
 
         # Run and append the performance data to the CSV file
         ./main >> performance_data.csv 2>&1

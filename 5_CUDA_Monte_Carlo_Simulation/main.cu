@@ -1,6 +1,7 @@
 // Monte Carlo simulation of castle-bombardment
 
 // system includes
+#define _USE_MATH_DEFINES
 #include <assert.h>
 #include <malloc.h>
 #include <math.h>
@@ -48,8 +49,8 @@ const float THMIN = 70.0; // cannonball launch angle in degrees
 const float THMAX = 80.0; // cannonball launch angle in degrees
 
 // constants
-const float GRAVITY = -9.8; // acceleraion due to gravity in meters / sec^2
-const float TOL = 5.0; // tolerance in cannonball hitting the castle in meters
+#define GRAVITY -9.8f // acceleraion due to gravity in meters / sec^2
+#define TOL 5.0f // tolerance in cannonball hitting the castle in meters
 
 // function prototypes
 void CudaCheckError();
@@ -86,12 +87,12 @@ MonteCarlo(float* dvs, float* dths, float* dgs, float* dhs, float* dds, int* dhi
     // see if the ball doesn't even reach the cliff
     float t = -vy / (0.5 * GRAVITY);
     float x = vx * t;
-    if (?????) {
+    if (x > g) {
         // see if the ball hits the vertical cliff face
         t = g / vx;
         float y = vy * t + 0.5 * GRAVITY * t * t;
 
-        if (?????) {
+        if (y > h) {
             // the ball hits the upper deck
             float a = 0.5 * GRAVITY;
             float b = vy;
@@ -111,8 +112,8 @@ MonteCarlo(float* dvs, float* dths, float* dgs, float* dhs, float* dds, int* dhi
             float upperDist = vx * tmax - g;
 
             // see if the ball hits the castle
-            if (?????) {
-                ? ? ? ? ? ;
+            if (fabsf(upperDist - d) <= TOL) {
+                dhits[gid] = 1;
             }
         } // if ball clears the cliff face
     } // if ball gets as far as the cliff face
@@ -146,82 +147,82 @@ int main(int argc, char* argv[])
     CudaCheckError();
 
     // copy host memory to the device
-        cudaMemcpy(dvs,  hvs, ?????, ?????);
-        cudaMemcpy(dths, hths, ?????, ?????);
-        cudaMemcpy(dgs,  hgs, ?????, ?????);
-        cudaMemcpy(dhs,  hhs, ?????, ?????);
-        cudaMemcpy(dds,  hds, ?????, ?????);
-        CudaCheckError();
+    cudaMemcpy(dvs, hvs, NUMTRIALS * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(dths, hths, NUMTRIALS * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(dgs, hgs, NUMTRIALS * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(dhs, hhs, NUMTRIALS * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(dds, hds, NUMTRIALS * sizeof(float), cudaMemcpyHostToDevice);
+    CudaCheckError();
 
-        // setup the execution parameters
-        dim3 grid(NUMBLOCKS, 1, 1);
-        dim3 threads(BLOCKSIZE, 1, 1);
+    // setup the execution parameters
+    dim3 grid(NUMBLOCKS, 1, 1);
+    dim3 threads(BLOCKSIZE, 1, 1);
 
-        // allocate cuda events that we'll use for timing
-        cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-        CudaCheckError();
+    // allocate cuda events that we'll use for timing
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    CudaCheckError();
 
-        // let the gpu go quiet
-        cudaDeviceSynchronize();
+    // let the gpu go quiet
+    cudaDeviceSynchronize();
 
-        // record the start event
-        cudaEventRecord(start, NULL);
-        CudaCheckError();
+    // record the start event
+    cudaEventRecord(start, NULL);
+    CudaCheckError();
 
-        // execute the kernel
-        MonteCarlo < < < ? ? ? ? ?, ? ? ? ? ? >>> (? ? ? ? ?, ? ? ? ? ?, ? ? ? ? ?, ? ? ? ? ?, ? ? ? ? ?, ? ? ? ? ?);
+    // execute the kernel
+    MonteCarlo<<<grid, threads>>>(dvs, dths, dgs, dhs, dds, dhits);
 
-        // record the stop event
-        cudaEventRecord(stop, NULL);
-        CudaCheckError();
+    // record the stop event
+    cudaEventRecord(stop, NULL);
+    CudaCheckError();
 
-        // wait for the stop event to complete
-        cudaDeviceSynchronize();
-        cudaEventSynchronize(stop);
-        CudaCheckError();
+    // wait for the stop event to complete
+    cudaDeviceSynchronize();
+    cudaEventSynchronize(stop);
+    CudaCheckError();
 
-        float msecTotal = 0.0f;
-        cudaEventElapsedTime(&msecTotal, start, stop);
-        CudaCheckError();
+    float msecTotal = 0.0f;
+    cudaEventElapsedTime(&msecTotal, start, stop);
+    CudaCheckError();
 
-        // compute and print the performance
-        double secondsTotal = 0.001 * (double)msecTotal;
-        double trialsPerSecond = (float)NUMTRIALS / secondsTotal;
-        double megaTrialsPerSecond = trialsPerSecond / 1000000.;
+    // compute and print the performance
+    double secondsTotal = 0.001 * (double)msecTotal;
+    double trialsPerSecond = (float)NUMTRIALS / secondsTotal;
+    double megaTrialsPerSecond = trialsPerSecond / 1000000.;
 
-        // copy result from the device to the host
-        cudaMemcpy(hhits, dhits, ?????, ?????);
-        CudaCheckError();
+    // copy result from the device to the host
+    cudaMemcpy(hhits, dhits, NUMTRIALS * sizeof(int), cudaMemcpyDeviceToHost);
+    CudaCheckError();
 
-        // compute the sum
-        int numHits = 0;
-        for (int i = 0; i < NUMTRIALS; i++) {
-            numHits += hhits[i];
-        }
+    // compute the sum
+    int numHits = 0;
+    for (int i = 0; i < NUMTRIALS; i++) {
+        numHits += hhits[i];
+    }
 
-        // compute the probability
-        float probability = 100.f * (float)numHits / (float)NUMTRIALS;
+    // compute the probability
+    float probability = 100.f * (float)numHits / (float)NUMTRIALS;
 
 #define CSV
 #ifdef CSV
-        fprintf(stderr, "%10d , %5d , %8.2lf\n", NUMTRIALS, BLOCKSIZE, megaTrialsPerSecond);
+    fprintf(stderr, "%10d , %5d , %8.2lf\n", NUMTRIALS, BLOCKSIZE, megaTrialsPerSecond);
 #else
-        fprintf(stderr, "Trials = %10d, BlockSize = %5d, MegaTrials/Second = %8.2lf, Probability=%6.3f%%\n",
-            NUMTRIALS, BLOCKSIZE, megaTrialsPerSecond, probability);
+    fprintf(stderr, "Trials = %10d, BlockSize = %5d, MegaTrials/Second = %8.2lf, Probability=%6.3f%%\n",
+        NUMTRIALS, BLOCKSIZE, megaTrialsPerSecond, probability);
 #endif
 
-        // clean up device memory
-        cudaFree(dvs);
-        cudaFree(dths);
-        cudaFree(dgs);
-        cudaFree(dhs);
-        cudaFree(dds);
-        cudaFree(dhits);
-        CudaCheckError();
+    // clean up device memory
+    cudaFree(dvs);
+    cudaFree(dths);
+    cudaFree(dgs);
+    cudaFree(dhs);
+    cudaFree(dds);
+    cudaFree(dhits);
+    CudaCheckError();
 
-        return 0;
+    return 0;
 }
 
 void CudaCheckError()
