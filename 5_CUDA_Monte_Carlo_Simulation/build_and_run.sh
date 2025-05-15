@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Output CSV header
-echo "Trials, Threads, MegaTrialsPerSecond" > performance_data.csv
+echo "Trials, Threads, MegaTrialsPerSecond, Probability" > performance_data.csv
 
 # Define the number of threads per block to test
 THREAD_COUNTS=(8 32 64 128 256)
