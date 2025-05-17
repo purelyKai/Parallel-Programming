@@ -28,7 +28,7 @@ Regression(IN global const float* dX,
     dSumx3[gid] = x_cb;
     dSumx2[gid] = x_sq;
     dSumx[gid] = x;
-    dSumx2y[gid] = x_sq * y_val;
-    dSumxy[gid] = x * y_val;
-    dSumy[gid] = y_val;
+    dSumx2y[gid] = x_sq * y;
+    dSumxy[gid] = x * y;
+    dSumy[gid] = y;
 }
