@@ -4,10 +4,10 @@
 echo "ArraySize, WorkElements, MegaPointsProcessedPerSecond" > performance_data.csv
 
 # Define the different array sizes to test
-ARRAY_SIZES=(8 16 32 64 128 256)
+ARRAY_SIZES=(4096 16384 65536 262144 1048576 4194304)
 
 # Define the number of work elements to test
-WORK_ELEMENTS=(4096 16384 65536 262144 1048576 4194304)
+WORK_ELEMENTS=(8 16 32 64 128 256)
 
 # Run tests for all combinations
 for arrs in "${ARRAY_SIZES[@]}"; do
