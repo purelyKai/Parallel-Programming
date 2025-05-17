@@ -19,11 +19,16 @@ Regression(IN global const float* dX,
 
     float x = dX[gid];
     float y = dY[gid];
-    dSumx4[gid] = ? ? ? ? ? ;
-    dSumx3[gid] = ? ? ? ? ? ;
-    dSumx2[gid] = ? ? ? ? ? ;
-    dSumx[gid] = ? ? ? ? ? ;
-    dSumx2y[gid] = ? ? ? ? ? ;
-    dSumxy[gid] = ? ? ? ? ? ;
-    dSumy[gid] = ? ? ? ? ? ;
+
+    float x_sq = x * x; // x^2
+    float x_cb = x_sq * x; // x^3
+    float x_qd = x_sq * x_sq; // x^4
+
+    dSumx4[gid] = x_qd;
+    dSumx3[gid] = x_cb;
+    dSumx2[gid] = x_sq;
+    dSumx[gid] = x;
+    dSumx2y[gid] = x_sq * y_val;
+    dSumxy[gid] = x * y_val;
+    dSumy[gid] = y_val;
 }
