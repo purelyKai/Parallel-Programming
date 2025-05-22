@@ -3,8 +3,8 @@
 #SBATCH -J Fourier
 #SBATCH -A cs475-575
 #SBATCH -p classmpifinal
-#SBATCH -N 8 # number of nodes
-#SBATCH -n 8 # number of tasks
+#SBATCH -N 32 # number of nodes
+#SBATCH -n 32 # number of tasks
 #SBATCH -o mpiproject.out
 #SBATCH -e mpiproject.err
 #SBATCH --mail-type=END,FAIL
